@@ -1,0 +1,81 @@
+{
+  "character": {
+    "id": "fb3d975e-5021-4f42-801f-0de7810183ab",
+    "name": "Young man, light brown skin, short black curly hair, fit build, white t-shirt, baggy jeans, chuck shoes, camera holsterd to his right side",
+    "prompt": "Young man, light brown skin, short black curly hair, fit build, white t-shirt, baggy jeans, chuck shoes, camera holsterd to his right side",
+    "size": {
+      "width": 68,
+      "height": 68
+    },
+    "template_id": "mannequin",
+    "directions": 8,
+    "view": "low top-down",
+    "created_at": "2026-04-20T16:03:58.941355+00:00"
+  },
+  "frames": {
+    "rotations": {
+      "south": "rotations/south.png",
+      "south-east": "rotations/south-east.png",
+      "east": "rotations/east.png",
+      "north-east": "rotations/north-east.png",
+      "north": "rotations/north.png",
+      "north-west": "rotations/north-west.png",
+      "west": "rotations/west.png",
+      "south-west": "rotations/south-west.png"
+    },
+    "animations": {
+      "Running-9d7c1321": {
+        "south": [
+          "animations/Running-9d7c1321/south/frame_000.png",
+          "animations/Running-9d7c1321/south/frame_001.png",
+          "animations/Running-9d7c1321/south/frame_002.png",
+          "animations/Running-9d7c1321/south/frame_003.png",
+          "animations/Running-9d7c1321/south/frame_004.png",
+          "animations/Running-9d7c1321/south/frame_005.png",
+          "animations/Running-9d7c1321/south/frame_006.png",
+          "animations/Running-9d7c1321/south/frame_007.png"
+        ]
+      },
+      "Jumping-488245aa": {
+        "east": [
+          "animations/Jumping-488245aa/east/frame_000.png",
+          "animations/Jumping-488245aa/east/frame_001.png",
+          "animations/Jumping-488245aa/east/frame_002.png",
+          "animations/Jumping-488245aa/east/frame_003.png",
+          "animations/Jumping-488245aa/east/frame_004.png",
+          "animations/Jumping-488245aa/east/frame_005.png",
+          "animations/Jumping-488245aa/east/frame_006.png",
+          "animations/Jumping-488245aa/east/frame_007.png",
+          "animations/Jumping-488245aa/east/frame_008.png"
+        ]
+      },
+      "Running-af797704": {
+        "east": [
+          "animations/Running-af797704/east/frame_000.png",
+          "animations/Running-af797704/east/frame_001.png",
+          "animations/Running-af797704/east/frame_002.png",
+          "animations/Running-af797704/east/frame_003.png",
+          "animations/Running-af797704/east/frame_004.png",
+          "animations/Running-af797704/east/frame_005.png",
+          "animations/Running-af797704/east/frame_006.png",
+          "animations/Running-af797704/east/frame_007.png"
+        ]
+      },
+      "Take_a_picture_with_camera-1fc692b7": {
+        "east": [
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_000.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_001.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_002.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_003.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_004.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_005.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_006.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_007.png",
+          "animations/Take_a_picture_with_camera-1fc692b7/east/frame_008.png"
+        ]
+      }
+    }
+  },
+  "export_version": "2.0",
+  "export_date": "2026-04-23T18:00:51.028505"
+}
