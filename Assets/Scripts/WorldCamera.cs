@@ -27,6 +27,9 @@ public class PuzzlePhotoMechanic : MonoBehaviour
 
     private GameObject currentPastedSticker;
     private bool isPhotoEmpty = false;
+    
+    private bool hasExtendedTimer = false;
+    private float currentPhotoLifetime = 10f;
 
     // --- NEW: A structure to remember what creatures we photographed and where they were! ---
     private struct CapturedClone
@@ -237,7 +240,7 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         colorRenderer.sortingOrder = 1; 
 
         StickerDecay timerScript = sticker.AddComponent<StickerDecay>();
-        timerScript.lifetime = 10f;
+        timerScript.lifetime = currentPhotoLifetime;
         timerScript.colorRenderer = colorRenderer;
 
         Transform physicsChild = sticker.transform.GetChild(0); 
@@ -261,5 +264,13 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             // By leaving it alone, the bug spawns independently in the world.
             // When the photo rots away, this bug will stay behind permanently.
         }
+    }
+
+    // --- NEW: THE UPGRADE METHOD ---
+    public void UpgradeTimer()
+    {
+        hasExtendedTimer = true;
+        currentPhotoLifetime = 20f;
+        Debug.Log("Power Up Collected! Photos now last 20 seconds!");
     }
 }
