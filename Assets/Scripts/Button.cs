@@ -60,7 +60,8 @@ public class Button : MonoBehaviour
     void OnTriggerEnter2D(Collider2D other)
     {
         // Check if the object stepping on us is allowed to press the button
-        if (other.CompareTag("Player") || other.CompareTag("Creature"))
+        Debug.Log("The plate was touched by: " + other.gameObject.name + " with the tag: " + other.tag);
+        if (other.CompareTag("Player") || other.CompareTag("Creatures"))
         {
             objectsOnButton++;
             
@@ -69,12 +70,13 @@ public class Button : MonoBehaviour
             {
                 doorTargetPos = doorClosedPos + doorOpenOffset;
             }
+            
         }
     }
 
     void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("Player") || other.CompareTag("Creature"))
+        if (other.CompareTag("Player") || other.CompareTag("Creatures"))
         {
             objectsOnButton--;
             

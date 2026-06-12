@@ -1,46 +1,67 @@
 using UnityEngine;
+using UnityEngine.Tilemaps;
 using System.Collections.Generic;
+using System.Collections;
 
 [RequireComponent(typeof(LineRenderer))]
 public class PuzzlePhotoMechanic : MonoBehaviour
 {
-    [Header("Settings")]
+    [Header("Base Settings")]
     public float captureSizeWorldUnits = 10f; 
     public int photoResolution = 512; 
     public float visionAngle = 45f; 
+    [Tooltip("Select layers allowed to be vaporized (e.g., Gameplay, Default)")]
+    public LayerMask layersToVaporize;
 
+    [Header("Controls")]
     public KeyCode captureKey = KeyCode.E;
     public KeyCode pasteKey = KeyCode.Q;
+    public KeyCode selfieKey = KeyCode.F;
 
     [Header("References")]
     public Camera visualCamera;  
     public Camera physicsCamera; 
     public GameObject stickerPrefab; 
     
+    // --- PHOTO SPRITES ---
     private Sprite visualSprite;      
     private Sprite grayscaleSprite;   
     private Sprite physicsSprite;
     
+    // --- INTERNAL TRACKERS ---
     private LineRenderer viewCone;
     private GameObject pastePreview;
     private SpriteRenderer previewRenderer;
-
     private GameObject currentPastedSticker;
     private bool isPhotoEmpty = false;
-    
-    private bool hasExtendedTimer = false;
-    private float currentPhotoLifetime = 10f;
 
-    // --- NEW: A structure to remember what creatures we photographed and where they were! ---
+    // --- CLONING MEMORY ---
     private struct CapturedClone
     {
         public GameObject prefab;
         public Vector3 relativePos;
+        public bool isPermanent;
     }
     private List<CapturedClone> capturedClones = new List<CapturedClone>();
 
+    // --- POWER UP TRACKERS ---
+    private bool hasExtendedTimer = false;
+    private float currentPhotoLifetime = 10f; 
+    
+    private bool hasLensUpgrade = false;
+    private bool isUsingTelephoto = false;
+    private float baseCaptureSize; 
+
+    private bool hasSelfieStick = false;
+    private bool isSelfiePhoto = false;
+    private bool selfieOnCooldown = false;
+    public float selfieCooldown = 60f;
+
     void Start()
     {
+        baseCaptureSize = captureSizeWorldUnits; // Remember starting size for the zoom lens
+
+        // Setup Aim Cone
         viewCone = GetComponent<LineRenderer>();
         viewCone.positionCount = 3;
         viewCone.loop = true; 
@@ -48,6 +69,7 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         viewCone.endWidth = 0.05f;
         viewCone.enabled = false; 
 
+        // Setup Paste Preview Ghost
         pastePreview = new GameObject("PastePreviewGhost");
         previewRenderer = pastePreview.AddComponent<SpriteRenderer>();
         previewRenderer.sortingOrder = 20; 
@@ -56,8 +78,20 @@ public class PuzzlePhotoMechanic : MonoBehaviour
 
     void Update()
     {
+        // ==========================================
+        // 1. CAPTURE LOGIC (Normal Photo & Zoom)
+        // ==========================================
         if (Input.GetKey(captureKey))
         {
+            if (hasLensUpgrade)
+            {
+                float scroll = Input.mouseScrollDelta.y;
+                if (scroll > 0f) isUsingTelephoto = true; 
+                else if (scroll < 0f) isUsingTelephoto = false; 
+                
+                captureSizeWorldUnits = isUsingTelephoto ? baseCaptureSize * 1.5f : baseCaptureSize;
+            }
+
             viewCone.enabled = true;
             DrawViewCone();
         }
@@ -66,11 +100,31 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             viewCone.enabled = false;
             CaptureDoublePhoto();
         }
-        else if (!Input.GetKey(captureKey))
+
+        // ==========================================
+        // 2. SELFIE CAPTURE LOGIC
+        // ==========================================
+        else if (hasSelfieStick && !selfieOnCooldown)
+        {
+            if (Input.GetKey(selfieKey))
+            {
+                viewCone.enabled = true;
+                DrawViewCone(); 
+            }
+            else if (Input.GetKeyUp(selfieKey))
+            {
+                viewCone.enabled = false;
+                CaptureSelfie();
+            }
+        }
+        else if (!Input.GetKey(captureKey) && !Input.GetKey(selfieKey))
         {
             viewCone.enabled = false; 
         }
 
+        // ==========================================
+        // 3. PASTE LOGIC
+        // ==========================================
         if (visualSprite != null) 
         {
             if (Input.GetKeyDown(pasteKey))
@@ -90,7 +144,15 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             if (Input.GetKeyUp(pasteKey))
             {
                 pastePreview.SetActive(false);
-                PastePhysicsPhoto();
+                
+                if (isSelfiePhoto)
+                {
+                    TeleportPlayer();
+                }
+                else
+                {
+                    PastePhysicsPhoto();
+                }
             }
         }
     }
@@ -115,6 +177,8 @@ public class PuzzlePhotoMechanic : MonoBehaviour
 
     void CaptureDoublePhoto()
     {
+        isSelfiePhoto = false; 
+
         visualCamera.aspect = 1f; 
         visualCamera.orthographicSize = captureSizeWorldUnits / 2f;
         physicsCamera.aspect = 1f; 
@@ -145,7 +209,6 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         Color[] gPixels = new Color[vPixels.Length]; 
         
         Vector2 center = new Vector2(photoResolution / 2f, photoResolution / 2f);
-
         isPhotoEmpty = true; 
 
         for (int y = 0; y < photoResolution; y++)
@@ -183,25 +246,22 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         grayTex.SetPixels(gPixels);
         grayTex.Apply();
 
-        // --- NEW: THE CLONE SCANNER ---
-        capturedClones.Clear(); // Empty out the old photo's memory
-        
-        // Draw a circle to find nearby objects
+        // THE CLONE SCANNER
+        capturedClones.Clear(); 
         Collider2D[] nearbyObjects = Physics2D.OverlapCircleAll(transform.position, captureSizeWorldUnits / 2f);
         foreach (Collider2D obj in nearbyObjects)
         {
             CloneablePhotoObject cloneable = obj.GetComponent<CloneablePhotoObject>();
             if (cloneable != null && cloneable.myPrefab != null)
             {
-                // Verify the creature was actually inside the 45-degree triangle
                 Vector2 dirToObj = (obj.transform.position - transform.position).normalized;
                 float objAngle = Mathf.Atan2(dirToObj.y, dirToObj.x) * Mathf.Rad2Deg;
                 if (Mathf.Abs(Mathf.DeltaAngle(aimAngle, objAngle)) <= visionAngle / 2f)
                 {
-                    // It's in the photo! Save its prefab and exact position
                     CapturedClone newClone;
                     newClone.prefab = cloneable.myPrefab;
                     newClone.relativePos = obj.transform.position - transform.position;
+                    newClone.isPermanent = cloneable.isPermanent;
                     capturedClones.Add(newClone);
                 }
             }
@@ -219,6 +279,77 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         grayscaleSprite = Sprite.Create(grayTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
     }
 
+    void CaptureSelfie()
+    {
+        int playerLayer = LayerMask.NameToLayer("Player");
+        visualCamera.cullingMask |= (1 << playerLayer);
+
+        visualCamera.aspect = 1f; 
+        visualCamera.orthographicSize = captureSizeWorldUnits / 2f;
+        
+        RenderTexture visRT = new RenderTexture(photoResolution, photoResolution, 24);
+        visualCamera.targetTexture = visRT;
+        visualCamera.Render();
+        RenderTexture.active = visRT;
+        Texture2D visTex = new Texture2D(photoResolution, photoResolution, TextureFormat.RGBA32, false);
+        visTex.ReadPixels(new Rect(0, 0, photoResolution, photoResolution), 0, 0);
+
+        Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 aimDir = (mousePos - transform.position).normalized;
+        float aimAngle = Mathf.Atan2(aimDir.y, aimDir.x) * Mathf.Rad2Deg;
+
+        Color[] vPixels = visTex.GetPixels();
+        Vector2 center = new Vector2(photoResolution / 2f, photoResolution / 2f);
+
+        for (int y = 0; y < photoResolution; y++)
+        {
+            for (int x = 0; x < photoResolution; x++)
+            {
+                int index = y * photoResolution + x;
+                Vector2 pixelPos = new Vector2(x, y);
+                Vector2 dirFromCenter = (pixelPos - center).normalized;
+                
+                float pixelAngle = Mathf.Atan2(dirFromCenter.y, dirFromCenter.x) * Mathf.Rad2Deg;
+                float angleDiff = Mathf.DeltaAngle(aimAngle, pixelAngle);
+
+                if (Mathf.Abs(angleDiff) > (visionAngle / 2f) || pixelPos == center)
+                {
+                    vPixels[index] = Color.clear;
+                }
+            }
+        }
+
+        visTex.SetPixels(vPixels);
+        visTex.Apply();
+
+        visualCamera.targetTexture = null;
+        RenderTexture.active = null;
+        Destroy(visRT);
+        visualCamera.cullingMask &= ~(1 << playerLayer); 
+
+        float ppu = photoResolution / captureSizeWorldUnits;
+        visualSprite = Sprite.Create(visTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
+        
+        isSelfiePhoto = true; 
+    }
+
+    void TeleportPlayer()
+    {
+        Vector3 spawnPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        spawnPos.z = 0; 
+
+        GameObject sticker = Instantiate(stickerPrefab, spawnPos, Quaternion.identity);
+        SpriteRenderer visRenderer = sticker.GetComponent<SpriteRenderer>();
+        visRenderer.sprite = visualSprite;
+        visRenderer.sortingOrder = 10; 
+        Destroy(sticker, 0.5f); 
+
+        transform.position = spawnPos;
+
+        LoseSavedPhoto();
+        StartCoroutine(SelfieCooldownRoutine());
+    }
+
     void PastePhysicsPhoto()
     {
         if (currentPastedSticker != null) Destroy(currentPastedSticker);
@@ -233,6 +364,50 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         baseRenderer.sprite = grayscaleSprite;
         baseRenderer.sortingOrder = 0; 
 
+        // THE TILEMAP VAPORIZER
+        PolygonCollider2D vaporizer = sticker.AddComponent<PolygonCollider2D>();
+        vaporizer.isTrigger = true;
+        Physics2D.SyncTransforms();
+
+        List<Collider2D> thingsToDestroy = new List<Collider2D>();
+        ContactFilter2D filter = new ContactFilter2D();
+        filter.SetLayerMask(layersToVaporize); 
+        Physics2D.OverlapCollider(vaporizer, filter, thingsToDestroy);
+
+        foreach(Collider2D obj in thingsToDestroy)
+        {
+            Tilemap map = obj.GetComponent<Tilemap>();
+            if (map != null)
+            {
+                Bounds bounds = vaporizer.bounds;
+                Vector3Int minCell = map.WorldToCell(bounds.min);
+                Vector3Int maxCell = map.WorldToCell(bounds.max);
+
+                for (int x = minCell.x - 1; x <= maxCell.x + 1; x++)
+                {
+                    for (int y = minCell.y - 1; y <= maxCell.y + 1; y++)
+                    {
+                        Vector3Int cellPos = new Vector3Int(x, y, 0);
+                        Vector3 worldPos = map.GetCellCenterWorld(cellPos);
+                        if (vaporizer.OverlapPoint(worldPos)) map.SetTile(cellPos, null);
+                    }
+                }
+            }
+            else
+            {
+                if (obj.transform.parent != null && obj.transform.parent.name.Contains("PuzzleSticker"))
+                {
+                    Destroy(obj.transform.parent.gameObject);
+                }
+                else
+                {
+                    Destroy(obj.gameObject); 
+                }
+            }
+        }
+        Destroy(vaporizer);
+
+        // PASTE THE NEW LEVEL
         GameObject colorChild = new GameObject("ColorVisual");
         colorChild.transform.SetParent(sticker.transform, false);
         SpriteRenderer colorRenderer = colorChild.AddComponent<SpriteRenderer>();
@@ -254,23 +429,58 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             physicsChild.gameObject.layer = LayerMask.NameToLayer("Default");
         }
 
-        // --- NEW: SPAWN THE CLONES! ---
+        // SPAWN THE CLONES (Bugs, Ladders, Mushrooms)
         foreach (CapturedClone clone in capturedClones)
         {
-            // 1. Spawn the creature relative to where you pasted the photo
-            GameObject spawnedBug = Instantiate(clone.prefab, spawnPos + clone.relativePos, Quaternion.identity);
-            
-            // 2. We DELETE the SetParent line! 
-            // By leaving it alone, the bug spawns independently in the world.
-            // When the photo rots away, this bug will stay behind permanently.
+            GameObject spawnedClone = Instantiate(clone.prefab, spawnPos + clone.relativePos, Quaternion.identity);
+            if (!clone.isPermanent)
+            {
+                spawnedClone.transform.SetParent(sticker.transform, true);
+            }
         }
     }
 
-    // --- NEW: THE UPGRADE METHOD ---
+    // ==========================================
+    // METROIDVANIA UPGRADES & PENALTIES
+    // ==========================================
+    
     public void UpgradeTimer()
     {
         hasExtendedTimer = true;
         currentPhotoLifetime = 20f;
         Debug.Log("Power Up Collected! Photos now last 20 seconds!");
+    }
+
+    public void UnlockTelephotoLens()
+    {
+        hasLensUpgrade = true;
+        Debug.Log("Telephoto Lens Collected! Scroll the mouse wheel while aiming to zoom!");
+    }
+
+    public void UnlockSelfieStick()
+    {
+        hasSelfieStick = true;
+        Debug.Log("Selfie Stick Unlocked! Press F to snap a selfie and teleport.");
+    }
+
+    IEnumerator SelfieCooldownRoutine()
+    {
+        selfieOnCooldown = true;
+        Debug.Log("Selfie Stick is on cooldown for 1 minute...");
+        yield return new WaitForSeconds(selfieCooldown);
+        selfieOnCooldown = false;
+        Debug.Log("Selfie Stick is ready!");
+    }
+
+    public void LoseSavedPhoto()
+    {
+        visualSprite = null;
+        physicsSprite = null;
+        grayscaleSprite = null;
+        capturedClones.Clear();
+        isPhotoEmpty = true;
+
+        if (pastePreview != null) pastePreview.SetActive(false);
+        Debug.Log("Photo corrupted or consumed!");
     }
 }
