@@ -22,6 +22,8 @@ public class PuzzlePhotoMechanic : MonoBehaviour
     public Camera visualCamera;  
     public Camera physicsCamera; 
     public GameObject stickerPrefab; 
+    [Tooltip("Drag your GameHUD Canvas object here")]
+    public GameHUD hudManager; // --- NEW HUD REFERENCE ---
     
     // --- PHOTO SPRITES ---
     private Sprite visualSprite;      
@@ -40,26 +42,26 @@ public class PuzzlePhotoMechanic : MonoBehaviour
     {
         public GameObject prefab;
         public Vector3 relativePos;
-        public bool isPermanent;
+        public bool isPermanent; 
     }
     private List<CapturedClone> capturedClones = new List<CapturedClone>();
 
     // --- POWER UP TRACKERS ---
-    private bool hasExtendedTimer = false;
+    public bool hasExtendedTimer = false;
     private float currentPhotoLifetime = 10f; 
     
-    private bool hasLensUpgrade = false;
+    public bool hasLensUpgrade = false;
     private bool isUsingTelephoto = false;
     private float baseCaptureSize; 
 
-    private bool hasSelfieStick = false;
+    public bool hasSelfieStick = false;
     private bool isSelfiePhoto = false;
     private bool selfieOnCooldown = false;
     public float selfieCooldown = 60f;
 
     void Start()
     {
-        baseCaptureSize = captureSizeWorldUnits; // Remember starting size for the zoom lens
+        baseCaptureSize = captureSizeWorldUnits; 
 
         // Setup Aim Cone
         viewCone = GetComponent<LineRenderer>();
@@ -261,7 +263,7 @@ public class PuzzlePhotoMechanic : MonoBehaviour
                     CapturedClone newClone;
                     newClone.prefab = cloneable.myPrefab;
                     newClone.relativePos = obj.transform.position - transform.position;
-                    newClone.isPermanent = cloneable.isPermanent;
+                    newClone.isPermanent = cloneable.isPermanent; 
                     capturedClones.Add(newClone);
                 }
             }
@@ -277,6 +279,9 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         visualSprite = Sprite.Create(visTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
         physicsSprite = Sprite.Create(physTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
         grayscaleSprite = Sprite.Create(grayTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
+
+        // --- NEW: SEND CAPTURED PHOTO TO HUD ---
+        if (hudManager != null) hudManager.UpdatePhotoDisplay(visualSprite);
     }
 
     void CaptureSelfie()
@@ -331,6 +336,9 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         visualSprite = Sprite.Create(visTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
         
         isSelfiePhoto = true; 
+
+        // --- NEW: SEND SELFIE PHOTO TO HUD ---
+        if (hudManager != null) hudManager.UpdatePhotoDisplay(visualSprite);
     }
 
     void TeleportPlayer()
@@ -429,7 +437,7 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             physicsChild.gameObject.layer = LayerMask.NameToLayer("Default");
         }
 
-        // SPAWN THE CLONES (Bugs, Ladders, Mushrooms)
+        // SPAWN THE CLONES 
         foreach (CapturedClone clone in capturedClones)
         {
             GameObject spawnedClone = Instantiate(clone.prefab, spawnPos + clone.relativePos, Quaternion.identity);
@@ -481,6 +489,10 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         isPhotoEmpty = true;
 
         if (pastePreview != null) pastePreview.SetActive(false);
+
+        // --- NEW: REMOVE FROM HUD BECAUSE PHOTO WAS LOST ---
+        if (hudManager != null) hudManager.UpdatePhotoDisplay(null);
+        
         Debug.Log("Photo corrupted or consumed!");
     }
 }
