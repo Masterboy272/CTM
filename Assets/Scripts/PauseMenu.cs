@@ -29,6 +29,10 @@ public class PauseMenu : MonoBehaviour
             {
                 OpenPauseMenu();
             }
+            else
+            {
+                ResumeButton(); 
+            }
             if (albumContainer.activeSelf)
             {
                 CloseAlbumButton();
@@ -36,10 +40,6 @@ public class PauseMenu : MonoBehaviour
             if (SettingsContainer.activeSelf)
             {
                 CloseSettingsButton();
-            }
-            else
-            {
-                ResumeButton(); 
             }
         }
     }

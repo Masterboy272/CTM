@@ -48,7 +48,7 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
-            rb.gravityScale = startingGravity; 
+            //rb.gravityScale = startingGravity; 
         }
     }
 
