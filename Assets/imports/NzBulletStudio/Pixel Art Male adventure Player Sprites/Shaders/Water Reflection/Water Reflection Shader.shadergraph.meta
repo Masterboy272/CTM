@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 76c913cc38f813947b20876d34a3fa44
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 271382
+  packageName: Pixel Art Male adventure Player Sprites
+  packageVersion: 1.0
+  assetPath: Assets/NzBulletStudio/Pixel Art Male adventure Player Sprites/Shaders/Water
+    Reflection/Water Reflection Shader.shadergraph
+  uploadId: 642802

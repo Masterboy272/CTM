@@ -3,6 +3,9 @@ using UnityEngine;
 public class SelfieStickUpgrade : MonoBehaviour
 {
     public GameObject collectionEffect;
+    [Header("Audio")]
+    [Tooltip("The chime or sound effect for collecting this item")]
+    public AudioClip collectSound;
 
     void OnTriggerEnter2D(Collider2D other)
     {
@@ -18,6 +21,10 @@ public class SelfieStickUpgrade : MonoBehaviour
                 {
                     Instantiate(collectionEffect, transform.position, Quaternion.identity);
                 }
+                if (AudioManager.instance != null && collectSound != null)
+            {
+                AudioManager.instance.PlaySFX(collectSound);
+            }
 
                 Destroy(gameObject);
             }

@@ -1,8 +1,12 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
+
 public class JumpBug : MonoBehaviour
 {
+    [Header("Audio")]
+    public AudioSource bugAudio;
+    public AudioClip jumpSound;
     public float jumpForce = 7f;
     public float jumpInterval = 4f;
     
@@ -18,7 +22,6 @@ public class JumpBug : MonoBehaviour
     {
         timer += Time.deltaTime;
         
-        // When the timer hits 4, jump and reset the timer!
         if (timer >= jumpInterval)
         {
             Jump();
@@ -28,10 +31,12 @@ public class JumpBug : MonoBehaviour
 
     void Jump()
     {
-        // Zero out current vertical velocity so jumps are always exactly the same height
         rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0); 
-        
-        // Apply an upward push
+
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        if (bugAudio != null && jumpSound != null)
+        {
+            bugAudio.PlayOneShot(jumpSound);
+        }
     }
 }

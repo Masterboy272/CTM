@@ -12,6 +12,9 @@ public class VirusPlant : MonoBehaviour
     public float maxShootTime = 7f;
 
     private float shootTimer;
+    [Header("Audio")]
+    public AudioSource plantAudio;
+    public AudioClip shootSound;
 
     void Start()
     {
@@ -33,20 +36,21 @@ public class VirusPlant : MonoBehaviour
     {
         if (seedPrefab != null && shootPoint != null)
         {
-            // Spawn the seed at the shootPoint, matching its exact rotation
             Instantiate(seedPrefab, shootPoint.position, shootPoint.rotation);
+        }
+        if (plantAudio != null && shootSound != null)
+        {
+            plantAudio.PlayOneShot(shootSound);
         }
     }
 
     void ResetTimer()
     {
-        // Pick a random time between 6 and 7 seconds
         shootTimer = Random.Range(minShootTime, maxShootTime);
     }
 
     // --- DIRECT TOUCH PENALTY ---
     
-    // If your plant uses a Trigger collider
     void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("Player"))
@@ -56,7 +60,6 @@ public class VirusPlant : MonoBehaviour
         }
     }
 
-    // If your plant uses a Solid collider
     void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Player"))

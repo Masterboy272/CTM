@@ -14,14 +14,12 @@ public class VolumeSettings : MonoBehaviour
 
     void Start()
     {
-        // Check if we have saved volume settings. If so, load them!
         if (PlayerPrefs.HasKey("musicVolume"))
         {
             LoadVolume();
         }
         else
         {
-            // If this is the player's very first time opening the game, force the mixer to match the sliders
             SetMasterVolume();
             SetMusicVolume();
             SetSFXVolume();
@@ -31,7 +29,6 @@ public class VolumeSettings : MonoBehaviour
     public void SetMasterVolume()
     {
         float volume = masterSlider.value;
-        // The math to convert a 0.0001 - 1 slider into decibels!
         myMixer.SetFloat("MasterVol", Mathf.Log10(volume) * 20);
         PlayerPrefs.SetFloat("masterVolume", volume);
     }

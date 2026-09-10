@@ -21,17 +21,13 @@ public class BugSpawner : MonoBehaviour
 
     void Start()
     {
-        // Set the timer so it spawns a bug almost immediately when the level starts
         timer = 0.5f; 
     }
 
     void Update()
     {
-        // 1. Clean up the list! 
-        // If a bug fell in a death pit or got vaporized by a photo, this removes the "empty" memory.
         activeBugs.RemoveAll(bug => bug == null);
 
-        // 2. Only run the timer if we are under the maximum bug limit
         if (activeBugs.Count < maxBugsActive)
         {
             timer -= Time.deltaTime;
@@ -48,7 +44,6 @@ public class BugSpawner : MonoBehaviour
     {
         if (bugPrefab != null && spawnPoint != null)
         {
-            // Spawn the bug and add it to our tracking list
             GameObject newBug = Instantiate(bugPrefab, spawnPoint.position, Quaternion.identity);
             activeBugs.Add(newBug);
         }

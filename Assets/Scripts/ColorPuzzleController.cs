@@ -47,7 +47,6 @@ public class ColorPuzzleController : MonoBehaviour
             {
                 panelTilePositions[i] = backgroundTilemap.WorldToCell(panelMarkers[i].position);
                 
-                // --- CHANGED: Paint the starting 'Wrong' tile directly onto the map! ---
                 if (wrongTile != null)
                 {
                     backgroundTilemap.SetTile(panelTilePositions[i], wrongTile);
@@ -76,7 +75,6 @@ public class ColorPuzzleController : MonoBehaviour
         {
             bool isThisOneCorrect = (puzzleMushrooms[i].currentColorIndex == solutionIndices[i]);
 
-            // --- CHANGED: Swap the physical tile on the tilemap ---
             if (backgroundTilemap != null && i < panelTilePositions.Length)
             {
                 TileBase tileToPlace = isThisOneCorrect ? rightTile : wrongTile;

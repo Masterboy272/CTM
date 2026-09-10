@@ -11,11 +11,8 @@ public class RainDrop : MonoBehaviour
     {
         Destroy(gameObject, maxLifetime);
     }
-
-    // --- CHANGED: Now uses real, solid physical collisions! ---
     void OnCollisionEnter2D(Collision2D collision)
     {
-        // Check if the solid object we smashed into is the floor or a pasted photo
         if (((1 << collision.gameObject.layer) & destroyLayers) != 0)
         {
             Destroy(gameObject);

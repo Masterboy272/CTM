@@ -13,6 +13,10 @@ public class SpringMushroom : MonoBehaviour
     [Tooltip("Drag your different colored mushroom sprites here IN ORDER.")]
     public Sprite[] cycleSprites;
     [HideInInspector] public int currentColorIndex = 0;
+
+    [Header("Audio")]
+    public AudioSource shroomAudio;
+    public AudioClip bounceSound;
     
     [Tooltip("Drag the Puzzle Controller here if this mushroom opens a door")]
     public ColorPuzzleController linkedPuzzle;
@@ -28,7 +32,6 @@ public class SpringMushroom : MonoBehaviour
             originalScale = mushroomVisual.localScale;
             visualRenderer = mushroomVisual.GetComponent<SpriteRenderer>();
             
-            // --- CHANGED: Set starting sprite if we have any ---
             if (cycleSprites.Length > 0 && visualRenderer != null)
             {
                 visualRenderer.sprite = cycleSprites[currentColorIndex];
@@ -49,14 +52,11 @@ public class SpringMushroom : MonoBehaviour
                     playerRb.linearVelocity = new Vector2(playerRb.linearVelocity.x, 0);
                     playerRb.AddForce(Vector2.up * bounceForce, ForceMode2D.Impulse);
 
-                    // --- CHANGED: SPRITE CYCLING LOGIC ---
                     if (cycleSprites.Length > 0 && visualRenderer != null)
                     {
-                        // Move to the next sprite, loop back to 0 if at the end
                         currentColorIndex = (currentColorIndex + 1) % cycleSprites.Length;
                         visualRenderer.sprite = cycleSprites[currentColorIndex];
 
-                        // Tell the door controller to check if the puzzle is solved!
                         if (linkedPuzzle != null)
                         {
                             linkedPuzzle.CheckPuzzle();
@@ -65,6 +65,10 @@ public class SpringMushroom : MonoBehaviour
 
                     if (mushroomVisual != null) StartCoroutine(SquishAnimation());
                 }
+            }
+            if (shroomAudio != null && bounceSound != null)
+            {
+                shroomAudio.PlayOneShot(bounceSound);
             }
         }
     }

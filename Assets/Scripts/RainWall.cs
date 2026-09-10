@@ -21,35 +21,25 @@ public class DynamicRainWall : MonoBehaviour
 
     void Start()
     {
-        // Grab the components from the child object
         rainRenderer = rainVisualObj.GetComponent<SpriteRenderer>();
         rainCollider = rainVisualObj.GetComponent<BoxCollider2D>();
     }
 
     void Update()
     {
-        // 1. Shoot an invisible laser straight down
         RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, maxDropDistance, layersThatBlockRain);
 
-        // Default to max length if we hit nothing
         float currentLength = maxDropDistance;
 
-        // If the laser hits something (like your pasted photo), shrink the length!
         if (hit.collider != null)
         {
             currentLength = hit.distance;
         }
 
-        // 2. Update the Visual Size
-        // NOTE: This only works correctly if the SpriteRenderer's Draw Mode is set to 'Tiled' in the Inspector!
         rainRenderer.size = new Vector2(rainWidth, currentLength);
 
-        // 3. Update the Physics Collider Size so it perfectly matches the visuals
         rainCollider.size = new Vector2(rainWidth, currentLength);
 
-        // 4. Position the rain block
-        // Because Unity sizes things from the center out, we have to push the block down 
-        // by exactly half its length so the top always stays attached to the spawner ceiling.
         rainVisualObj.localPosition = new Vector3(0, -currentLength / 2f, 0);
     }
 }

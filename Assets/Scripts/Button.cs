@@ -13,27 +13,30 @@ public class Button : MonoBehaviour
     public Transform buttonVisual; 
     [Tooltip("How far down the button visually sinks when pressed")]
     public float buttonPressDistance = 0.2f; 
+    [Header("Audio")]
+    public AudioSource plateAudio;
+    public AudioClip pressSound;
+    public AudioClip releaseSound;
+    public AudioSource doorAudio;
+    public AudioClip openSound;
+    public AudioClip closeSound;
 
-    // Internal trackers
     private Vector3 doorClosedPos;
     private Vector3 doorTargetPos;
     
     private Vector3 buttonUpPos;
     private Vector3 buttonDownPos;
 
-    // The secret to puzzle buttons: Counting what is on it!
     private int objectsOnButton = 0; 
 
     void Start()
     {
-        // Record where the door starts so we know how to close it
         if (doorToOpen != null)
         {
             doorClosedPos = doorToOpen.transform.position;
             doorTargetPos = doorClosedPos;
         }
 
-        // Record where the button starts so we know how to press it
         if (buttonVisual != null)
         {
             buttonUpPos = buttonVisual.localPosition;
@@ -43,13 +46,11 @@ public class Button : MonoBehaviour
 
     void Update()
     {
-        // Smoothly slide the door to its target position
         if (doorToOpen != null)
         {
             doorToOpen.transform.position = Vector3.Lerp(doorToOpen.transform.position, doorTargetPos, Time.deltaTime * doorSpeed);
         }
 
-        // Smoothly push the button visual down or pop it back up
         if (buttonVisual != null)
         {
             Vector3 targetButtonPos = (objectsOnButton > 0) ? buttonDownPos : buttonUpPos;
@@ -59,18 +60,23 @@ public class Button : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // Check if the object stepping on us is allowed to press the button
         Debug.Log("The plate was touched by: " + other.gameObject.name + " with the tag: " + other.tag);
         if (other.CompareTag("Player") || other.CompareTag("Creatures"))
         {
             objectsOnButton++;
-            
-            // If this is the FIRST object to press it, open the door!
+
             if (objectsOnButton == 1) 
             {
                 doorTargetPos = doorClosedPos + doorOpenOffset;
             }
-            
+            if (plateAudio != null && pressSound != null)
+        {
+            plateAudio.PlayOneShot(pressSound);
+        }
+        if (doorAudio != null && openSound != null)
+        {
+            doorAudio.PlayOneShot(openSound);
+        }
         }
     }
 
@@ -80,12 +86,19 @@ public class Button : MonoBehaviour
         {
             objectsOnButton--;
             
-            // Safety catch: If the count hits 0, close the door!
             if (objectsOnButton <= 0) 
             {
                 objectsOnButton = 0;
                 doorTargetPos = doorClosedPos; 
             }
+            if (plateAudio != null && releaseSound != null)
+        {
+            plateAudio.PlayOneShot(releaseSound);
+        }
+        if (doorAudio != null && closeSound != null)
+        {
+            doorAudio.PlayOneShot(closeSound);
+        }
         }
     }
 }

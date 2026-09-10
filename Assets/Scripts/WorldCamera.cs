@@ -12,18 +12,41 @@ public class PuzzlePhotoMechanic : MonoBehaviour
     public float visionAngle = 45f; 
     [Tooltip("Select layers allowed to be vaporized (e.g., Gameplay, Default)")]
     public LayerMask layersToVaporize;
+    private float originalFacingX;
 
     [Header("Controls")]
     public KeyCode captureKey = KeyCode.E;
     public KeyCode pasteKey = KeyCode.Q;
     public KeyCode selfieKey = KeyCode.F;
 
+    [Header("Selfie Settings")]
+    [Tooltip("How wide the selfie box is")]
+    public float selfieWidth = 2f; 
+    [Tooltip("How tall the selfie box is")]
+    public float selfieHeight = 4f;
+
+    [Header("Camera Audio")]
+    public AudioSource cameraAudioSource;
+    public AudioClip focusingSound;
+    public AudioClip shutterSound;  
+    public AudioClip pasteSound;
+    [Tooltip("How many seconds to wait before the photo actually appears")]
+    public float pasteDelay = 0.2f;
+
+    [Header("Animation")]
+    public Animator playerAnimator;
+
+    [Header("Player Scripts")]
+    public PlayerMovement playerMovement;
+    private bool isValidPasteStarted = false;
+    private bool isValidPhotoStarted = false;
+
     [Header("References")]
     public Camera visualCamera;  
     public Camera physicsCamera; 
     public GameObject stickerPrefab; 
     [Tooltip("Drag your GameHUD Canvas object here")]
-    public GameHUD hudManager; // --- NEW HUD REFERENCE ---
+    public GameHUD hudManager;
     
     // --- PHOTO SPRITES ---
     private Sprite visualSprite;      
@@ -83,24 +106,38 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         // ==========================================
         // 1. CAPTURE LOGIC (Normal Photo & Zoom)
         // ==========================================
-        if (Input.GetKey(captureKey))
+        if (Input.GetKeyDown(captureKey) && !IsPlayerMoving())
+        {
+            isValidPhotoStarted = true;
+            StartFocusingSound(); 
+            if (playerAnimator != null) playerAnimator.SetBool("isTakingPicture", true);
+            if (playerMovement != null) playerMovement.canMove = false;
+            originalFacingX = transform.localScale.x;
+        }
+        if (Input.GetKey(captureKey) && isValidPhotoStarted)
         {
             if (hasLensUpgrade)
             {
                 float scroll = Input.mouseScrollDelta.y;
                 if (scroll > 0f) isUsingTelephoto = true; 
                 else if (scroll < 0f) isUsingTelephoto = false; 
-                
+                originalFacingX = transform.localScale.x;
                 captureSizeWorldUnits = isUsingTelephoto ? baseCaptureSize * 1.5f : baseCaptureSize;
             }
 
             viewCone.enabled = true;
             DrawViewCone();
+            FaceMouseDirection();
         }
-        else if (Input.GetKeyUp(captureKey))
+        else if (Input.GetKeyUp(captureKey) && isValidPhotoStarted)
         {
+            isValidPhotoStarted = false;
+            if (playerAnimator != null) playerAnimator.SetBool("isTakingPicture", false);
+            if (playerMovement != null) playerMovement.canMove = true;
             viewCone.enabled = false;
+            PlayShutterSound();
             CaptureDoublePhoto();
+            transform.localScale = new Vector3(originalFacingX, transform.localScale.y, transform.localScale.z);
         }
 
         // ==========================================
@@ -108,14 +145,19 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         // ==========================================
         else if (hasSelfieStick && !selfieOnCooldown)
         {
+            if (Input.GetKeyDown(selfieKey))
+            {
+                StartFocusingSound(); 
+            }
             if (Input.GetKey(selfieKey))
             {
                 viewCone.enabled = true;
-                DrawViewCone(); 
+                DrawSelfieBox(); 
             }
             else if (Input.GetKeyUp(selfieKey))
             {
                 viewCone.enabled = false;
+                PlayShutterSound();
                 CaptureSelfie();
             }
         }
@@ -129,23 +171,34 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         // ==========================================
         if (visualSprite != null) 
         {
-            if (Input.GetKeyDown(pasteKey))
+            if (Input.GetKeyDown(pasteKey) && !IsPlayerMoving())
             {
+                isValidPasteStarted = true;
+                if (playerAnimator != null) playerAnimator.SetBool("IsHoldingPaste", true);
+                if (playerMovement != null) playerMovement.canMove = false;
                 pastePreview.SetActive(true);
                 previewRenderer.sprite = visualSprite;
                 previewRenderer.color = new Color(1f, 1f, 1f, 0.5f); 
+                originalFacingX = transform.localScale.x;
             }
 
-            if (Input.GetKey(pasteKey))
+            if (Input.GetKey(pasteKey) && isValidPasteStarted)
             {
+                
                 Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                 mousePos.z = 0; 
                 pastePreview.transform.position = mousePos;
+                FaceMouseDirection();
             }
 
-            if (Input.GetKeyUp(pasteKey))
+            if (Input.GetKeyUp(pasteKey) && isValidPasteStarted)
             {
+                isValidPasteStarted = false;
+                if (playerAnimator != null) playerAnimator.SetBool("IsHoldingPaste", false);
+                if (playerMovement != null) playerMovement.canMove = true;
                 pastePreview.SetActive(false);
+                StartCoroutine(PasteRoutine());
+                transform.localScale = new Vector3(originalFacingX, transform.localScale.y, transform.localScale.z);
                 
                 if (isSelfiePhoto)
                 {
@@ -157,10 +210,13 @@ public class PuzzlePhotoMechanic : MonoBehaviour
                 }
             }
         }
+        
     }
 
     void DrawViewCone()
     {
+
+        viewCone.positionCount = 3;
         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         Vector2 aimDir = (mousePos - transform.position).normalized;
         float aimAngle = Mathf.Atan2(aimDir.y, aimDir.x) * Mathf.Rad2Deg;
@@ -175,6 +231,24 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         viewCone.SetPosition(0, transform.position); 
         viewCone.SetPosition(1, leftPoint);          
         viewCone.SetPosition(2, rightPoint);         
+    }
+
+    void DrawSelfieBox()
+    {
+        viewCone.positionCount = 4; 
+        
+        float halfWidth = selfieWidth / 2f;
+        float halfHeight = selfieHeight / 2f;
+        
+        Vector3 topLeft = transform.position + new Vector3(-halfWidth, halfHeight, 0);
+        Vector3 topRight = transform.position + new Vector3(halfWidth, halfHeight, 0);
+        Vector3 bottomRight = transform.position + new Vector3(halfWidth, -halfHeight, 0);
+        Vector3 bottomLeft = transform.position + new Vector3(-halfWidth, -halfHeight, 0);
+
+        viewCone.SetPosition(0, topLeft);
+        viewCone.SetPosition(1, topRight);
+        viewCone.SetPosition(2, bottomRight);
+        viewCone.SetPosition(3, bottomLeft);
     }
 
     void CaptureDoublePhoto()
@@ -280,64 +354,39 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         physicsSprite = Sprite.Create(physTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
         grayscaleSprite = Sprite.Create(grayTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
 
-        // --- NEW: SEND CAPTURED PHOTO TO HUD ---
         if (hudManager != null) hudManager.UpdatePhotoDisplay(visualSprite);
     }
 
     void CaptureSelfie()
     {
-        int playerLayer = LayerMask.NameToLayer("Player");
-        visualCamera.cullingMask |= (1 << playerLayer);
+        int playerLayer = LayerMask.NameToLayer("player");
+        visualCamera.cullingMask |= (1 << playerLayer); 
 
-        visualCamera.aspect = 1f; 
-        visualCamera.orthographicSize = captureSizeWorldUnits / 2f;
+        visualCamera.aspect = selfieWidth / selfieHeight;
+        visualCamera.orthographicSize = selfieHeight / 2f;
         
-        RenderTexture visRT = new RenderTexture(photoResolution, photoResolution, 24);
+        int resX = Mathf.RoundToInt(photoResolution * (selfieWidth / selfieHeight));
+        int resY = photoResolution;
+
+        RenderTexture visRT = new RenderTexture(resX, resY, 24);
         visualCamera.targetTexture = visRT;
         visualCamera.Render();
         RenderTexture.active = visRT;
-        Texture2D visTex = new Texture2D(photoResolution, photoResolution, TextureFormat.RGBA32, false);
-        visTex.ReadPixels(new Rect(0, 0, photoResolution, photoResolution), 0, 0);
-
-        Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 aimDir = (mousePos - transform.position).normalized;
-        float aimAngle = Mathf.Atan2(aimDir.y, aimDir.x) * Mathf.Rad2Deg;
-
-        Color[] vPixels = visTex.GetPixels();
-        Vector2 center = new Vector2(photoResolution / 2f, photoResolution / 2f);
-
-        for (int y = 0; y < photoResolution; y++)
-        {
-            for (int x = 0; x < photoResolution; x++)
-            {
-                int index = y * photoResolution + x;
-                Vector2 pixelPos = new Vector2(x, y);
-                Vector2 dirFromCenter = (pixelPos - center).normalized;
-                
-                float pixelAngle = Mathf.Atan2(dirFromCenter.y, dirFromCenter.x) * Mathf.Rad2Deg;
-                float angleDiff = Mathf.DeltaAngle(aimAngle, pixelAngle);
-
-                if (Mathf.Abs(angleDiff) > (visionAngle / 2f) || pixelPos == center)
-                {
-                    vPixels[index] = Color.clear;
-                }
-            }
-        }
-
-        visTex.SetPixels(vPixels);
-        visTex.Apply();
+        
+        Texture2D visTex = new Texture2D(resX, resY, TextureFormat.RGBA32, false);
+        visTex.ReadPixels(new Rect(0, 0, resX, resY), 0, 0);
+        visTex.Apply(); 
 
         visualCamera.targetTexture = null;
         RenderTexture.active = null;
         Destroy(visRT);
         visualCamera.cullingMask &= ~(1 << playerLayer); 
 
-        float ppu = photoResolution / captureSizeWorldUnits;
-        visualSprite = Sprite.Create(visTex, new Rect(0, 0, photoResolution, photoResolution), new Vector2(0.5f, 0.5f), ppu);
+        float ppu = resY / selfieHeight; 
+        visualSprite = Sprite.Create(visTex, new Rect(0, 0, resX, resY), new Vector2(0.5f, 0.5f), ppu);
         
         isSelfiePhoto = true; 
 
-        // --- NEW: SEND SELFIE PHOTO TO HUD ---
         if (hudManager != null) hudManager.UpdatePhotoDisplay(visualSprite);
     }
 
@@ -372,7 +421,6 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         baseRenderer.sprite = grayscaleSprite;
         baseRenderer.sortingOrder = 0; 
 
-        // THE TILEMAP VAPORIZER
         PolygonCollider2D vaporizer = sticker.AddComponent<PolygonCollider2D>();
         vaporizer.isTrigger = true;
         Physics2D.SyncTransforms();
@@ -415,7 +463,6 @@ public class PuzzlePhotoMechanic : MonoBehaviour
         }
         Destroy(vaporizer);
 
-        // PASTE THE NEW LEVEL
         GameObject colorChild = new GameObject("ColorVisual");
         colorChild.transform.SetParent(sticker.transform, false);
         SpriteRenderer colorRenderer = colorChild.AddComponent<SpriteRenderer>();
@@ -437,7 +484,6 @@ public class PuzzlePhotoMechanic : MonoBehaviour
             physicsChild.gameObject.layer = LayerMask.NameToLayer("Default");
         }
 
-        // SPAWN THE CLONES 
         foreach (CapturedClone clone in capturedClones)
         {
             GameObject spawnedClone = Instantiate(clone.prefab, spawnPos + clone.relativePos, Quaternion.identity);
@@ -446,6 +492,31 @@ public class PuzzlePhotoMechanic : MonoBehaviour
                 spawnedClone.transform.SetParent(sticker.transform, true);
             }
         }
+    }
+    private void FaceMouseDirection()
+    {
+        Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        
+        if (mouseWorldPos.x > transform.position.x)
+        {
+            transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+        }
+        else if (mouseWorldPos.x < transform.position.x)
+        {
+            transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+        }
+    }
+    private bool IsPlayerMoving()
+    {
+        if (playerMovement != null)
+        {
+            Rigidbody2D rb = playerMovement.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                return Mathf.Abs(rb.linearVelocity.x) > 0.1f || Mathf.Abs(rb.linearVelocity.y) > 0.1f;
+            }
+        }
+        return false;
     }
 
     // ==========================================
@@ -490,9 +561,46 @@ public class PuzzlePhotoMechanic : MonoBehaviour
 
         if (pastePreview != null) pastePreview.SetActive(false);
 
-        // --- NEW: REMOVE FROM HUD BECAUSE PHOTO WAS LOST ---
         if (hudManager != null) hudManager.UpdatePhotoDisplay(null);
         
         Debug.Log("Photo corrupted or consumed!");
+    }
+    private void StartFocusingSound()
+    {
+        if (cameraAudioSource != null && focusingSound != null)
+        {
+            cameraAudioSource.clip = focusingSound;
+            cameraAudioSource.loop = true; 
+            cameraAudioSource.Play();
+        }
+    }
+
+    private void PlayShutterSound()
+    {
+        if (cameraAudioSource != null)
+        {
+            cameraAudioSource.Stop(); 
+            if (shutterSound != null)
+            {
+                cameraAudioSource.PlayOneShot(shutterSound); 
+            }
+        }
+    }
+    private IEnumerator PasteRoutine()
+    {
+        if (cameraAudioSource != null && pasteSound != null)
+        {
+            cameraAudioSource.PlayOneShot(pasteSound);
+        }
+        yield return new WaitForSeconds(pasteDelay);
+
+        if (isSelfiePhoto)
+        {
+            TeleportPlayer();
+        }
+        else
+        {
+            PastePhysicsPhoto();
+        }
     }
 }
